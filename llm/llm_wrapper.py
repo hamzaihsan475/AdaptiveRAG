@@ -92,6 +92,45 @@ class TransformerLLM:
         )
         return generated_text
 
+    def generate_chat(self, system_prompt: str, user_prompt: str,
+                       max_new_tokens: int = 256, temperature: float = 0.7) -> str:
+        """
+        Generate a response using the model's proper chat template,
+        which significantly improves instruction-following compared
+        to raw text prompting.
+
+        Args:
+            system_prompt (str): Instructions defining the assistant's role.
+            user_prompt (str): The user-facing message, including context.
+            max_new_tokens (int): Maximum number of tokens to generate.
+            temperature (float): Sampling temperature.
+
+        Returns:
+            str: The generated response text.
+        """
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        inputs = self.tokenizer.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            return_tensors="pt",
+            return_dict=True,
+        ).to(self.device)
+
+        output_ids = self.model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            do_sample=True,
+            pad_token_id=self.tokenizer.eos_token_id,
+        )
+        generated_text = self.tokenizer.decode(
+            output_ids[0][inputs["input_ids"].shape[1]:],
+            skip_special_tokens=True,
+        )
+        return generated_text
 
 if __name__ == "__main__":
     print("Loading model...", flush=True)

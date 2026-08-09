@@ -6,6 +6,7 @@ chunks with their embeddings, and querying for similar chunks
 given a search query.
 """
 
+import os
 import chromadb
 from embeddings.embedder import EmbeddingGenerator
 
@@ -21,15 +22,21 @@ class VectorStore:
         embedder (EmbeddingGenerator): Embedding generator instance.
     """
 
-    def __init__(self, persist_directory: str = "chroma_db",
+    def __init__(self, persist_directory: str = None,
                  collection_name: str = "adaptiverag_docs"):
         """
         Initialize the ChromaDB client, collection, and embedder.
 
         Args:
             persist_directory (str): Local folder for persistent storage.
+                Defaults to a chroma_db/ folder at the project root,
+                regardless of the current working directory.
             collection_name (str): Name of the collection to use/create.
         """
+        if persist_directory is None:
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            persist_directory = os.path.join(base_dir, "chroma_db")
+
         self.persist_directory = persist_directory
         self.collection_name = collection_name
         self.embedder = EmbeddingGenerator()

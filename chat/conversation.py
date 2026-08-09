@@ -24,7 +24,7 @@ class ConversationManager:
         top_k (int): Number of retrieved chunks to use per query.
     """
 
-    def __init__(self, top_k: int = 3):
+    def __init__(self, top_k: int = 4):
         """
         Initialize the conversation manager with an LLM, vector
         store, and empty chat history.
@@ -37,17 +37,17 @@ class ConversationManager:
         self.history: list[dict] = []
         self.top_k = top_k
 
-    def _build_prompt(self, query: str, retrieved_chunks: list[str]) -> str:
+    def _build_prompt(self, query: str, retrieved_chunks: list[str]) -> tuple[str, str]:
         """
-        Construct a prompt combining retrieved context, recent
-        chat history, and the current user query.
+        Construct the system and user prompts, combining retrieved
+        context and recent chat history with the current query.
 
         Args:
             query (str): The current user question.
             retrieved_chunks (list[str]): Relevant chunks from retrieval.
 
         Returns:
-            str: The final prompt to send to the LLM.
+            tuple[str, str]: (system_prompt, user_prompt)
         """
         context = "\n".join(retrieved_chunks)
 
@@ -55,29 +55,31 @@ class ConversationManager:
         for turn in self.history[-3:]:  # last 3 turns for brevity
             history_text += f"User: {turn['user']}\nAssistant: {turn['assistant']}\n"
 
-        prompt = (
-            f"You are a technical assistant answering questions about "
-            f"software architecture, API documentation, and system logs.\n\n"
-            f"Relevant context:\n{context}\n\n"
-            f"Conversation so far:\n{history_text}\n"
-            f"User: {query}\nAssistant:"
+        system_prompt = (
+            "You are a technical assistant answering questions about software "
+            "architecture, API documentation, and system logs. Always answer "
+            "using ONLY the provided context below. If the context doesn't "
+            "contain the answer, say so directly instead of asking the user "
+            "to provide the document."
         )
-        return prompt
+
+        user_prompt = (
+            f"Context:\n{context}\n\n"
+            f"{history_text}"
+            f"Question: {query}"
+        )
+
+        return system_prompt, user_prompt
 
     def ask(self, query: str) -> str:
-        """
-        Process a single user query end-to-end: retrieve context,
-        build the prompt, generate a response, and update history.
-
-        Args:
-            query (str): The user's question.
-
-        Returns:
-            str: The generated response.
-        """
         retrieved_chunks = self.vector_store.query(query, top_k=self.top_k)
-        prompt = self._build_prompt(query, retrieved_chunks)
-        response = self.llm.generate(prompt, max_new_tokens=200)
+        print("--- DEBUG: Retrieved chunks ---")
+        for i, c in enumerate(retrieved_chunks, 1):
+            print(f"[{i}] {c}")
+        print("--- END DEBUG ---")
+
+        system_prompt, user_prompt = self._build_prompt(query, retrieved_chunks)
+        response = self.llm.generate_chat(system_prompt, user_prompt, max_new_tokens=200)
 
         self.history.append({"user": query, "assistant": response})
         return response
