@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AdaptiveRAG Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; }
+        .message { padding: 10px; margin: 8px 0; border-radius: 8px; }
+        .user { background: #dae8fc; text-align: right; }
+        .assistant { background: #d5e8d4; }
+        form { display: flex; gap: 10px; margin-top: 20px; }
+        input[type=text] { flex: 1; padding: 10px; }
+        button { padding: 10px 20px; }
+    </style>
+</head>
+<body>
+    <h2>AdaptiveRAG — DevTech Assistant</h2>
+
+    <div id="chat-window">
+        {% for msg in messages %}
+            <div class="message {{ msg.role }}">
+                <strong>{{ msg.role|title }}:</strong> {{ msg.message }}
+            </div>
+        {% endfor %}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="text" name="message" placeholder="Ask about API docs, architecture, or errors..." autofocus>
+        <button type="submit">Send</button>
+    </form>
+</body>
+</html>
