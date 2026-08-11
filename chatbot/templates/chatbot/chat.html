@@ -14,7 +14,15 @@
 </head>
 <body>
     <h2>AdaptiveRAG — DevTech Assistant</h2>
-
+<h3>Upload a document</h3>
+<form method="post" enctype="multipart/form-data" action="{% url 'upload' %}">
+    {% csrf_token %}
+    <input type="file" name="document" accept=".pdf,.docx,.txt,.xlsx" required>
+    <button type="submit">Upload</button>
+</form>
+{% if upload_message %}
+    <p style="color: green;">{{ upload_message }}</p>
+{% endif %}
     <div id="chat-window">
         {% for msg in messages %}
             <div class="message {{ msg.role }}">

@@ -93,7 +93,7 @@ class TransformerLLM:
         return generated_text
 
     def generate_chat(self, system_prompt: str, user_prompt: str,
-                       max_new_tokens: int = 256, temperature: float = 0.7) -> str:
+                      max_new_tokens: int = 256, temperature: float = 0.2) -> str:
         """
         Generate a response using the model's proper chat template,
         which significantly improves instruction-following compared

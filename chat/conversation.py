@@ -3,12 +3,26 @@ conversation.py
 
 Orchestrates the full conversational RAG flow: takes a user
 query, retrieves relevant context from the vector store, builds
-a prompt with chat history, generates a response via the LLM,
-and updates the conversation history.
+a prompt with chat history and a detailed system prompt, generates
+a response via the LLM, and updates the conversation history.
 """
 
 from llm.llm_wrapper import TransformerLLM
 from retrieval.vector_store import VectorStore
+
+SYSTEM_PROMPT = """You are AdaptiveRAG, an expert AI Technical Assistant specializing in software architecture, API documentation, and system logs.
+
+### CORE DUTIES & ROLE:
+- Your primary objective is to answer technical queries accurately using ONLY the provided document context.
+- Maintain a professional, concise, and structured tone suited for software engineers and system architects.
+
+### RULES & COMPLIANCE:
+1. STRICT CONTEXT ADHERENCE: Answer using ONLY the information provided in the Context section below. Do NOT use outside knowledge or make assumptions.
+2. CITATION & SOURCES: Always reference the source document or section where the information was found (e.g., [Source: API Guide - Section 2]).
+3. ZERO HALLUCINATION: If the provided context does not contain enough information to answer the question, state clearly: "I cannot answer this question based on the provided documents."
+4. STRUCTURED OUTPUT: Use bullet points, code blocks, or tables wherever applicable to make technical answers readable.
+5. NO SPECULATION: Never guess parameters, endpoints, or error codes that are not explicitly written in the context.
+"""
 
 
 class ConversationManager:
@@ -37,31 +51,26 @@ class ConversationManager:
         self.history: list[dict] = []
         self.top_k = top_k
 
-    def _build_prompt(self, query: str, retrieved_chunks: list[str]) -> tuple[str, str]:
+    def _build_prompt(self, query: str, retrieved_chunks: list[dict]) -> tuple[str, str]:
         """
         Construct the system and user prompts, combining retrieved
-        context and recent chat history with the current query.
+        context (with source labels) and recent chat history with
+        the current query.
 
         Args:
             query (str): The current user question.
-            retrieved_chunks (list[str]): Relevant chunks from retrieval.
+            retrieved_chunks (list[dict]): Chunks with 'text' and 'source' keys.
 
         Returns:
             tuple[str, str]: (system_prompt, user_prompt)
         """
-        context = "\n".join(retrieved_chunks)
+        context = "\n".join(
+            f"[Source: {c['source']}] {c['text']}" for c in retrieved_chunks
+        )
 
         history_text = ""
         for turn in self.history[-3:]:  # last 3 turns for brevity
             history_text += f"User: {turn['user']}\nAssistant: {turn['assistant']}\n"
-
-        system_prompt = (
-            "You are a technical assistant answering questions about software "
-            "architecture, API documentation, and system logs. Always answer "
-            "using ONLY the provided context below. If the context doesn't "
-            "contain the answer, say so directly instead of asking the user "
-            "to provide the document."
-        )
 
         user_prompt = (
             f"Context:\n{context}\n\n"
@@ -69,15 +78,20 @@ class ConversationManager:
             f"Question: {query}"
         )
 
-        return system_prompt, user_prompt
+        return SYSTEM_PROMPT, user_prompt
 
     def ask(self, query: str) -> str:
-        retrieved_chunks = self.vector_store.query(query, top_k=self.top_k)
-        print("--- DEBUG: Retrieved chunks ---")
-        for i, c in enumerate(retrieved_chunks, 1):
-            print(f"[{i}] {c}")
-        print("--- END DEBUG ---")
+        """
+        Process a single user query end-to-end: retrieve context,
+        build the prompt, generate a response, and update history.
 
+        Args:
+            query (str): The user's question.
+
+        Returns:
+            str: The generated response.
+        """
+        retrieved_chunks = self.vector_store.query(query, top_k=self.top_k)
         system_prompt, user_prompt = self._build_prompt(query, retrieved_chunks)
         response = self.llm.generate_chat(system_prompt, user_prompt, max_new_tokens=200)
 

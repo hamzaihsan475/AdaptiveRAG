@@ -9,4 +9,5 @@ from . import views
 
 urlpatterns = [
     path("", views.chat_view, name="chat"),
+    path("upload/", views.upload_view, name="upload"),
 ]

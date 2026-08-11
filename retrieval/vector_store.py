@@ -66,23 +66,26 @@ class VectorStore:
             metadatas=metadatas,
         )
 
-    def query(self, query_text: str, top_k: int = 3) -> list[str]:
+    def query(self, query_text: str, top_k: int = 3) -> list[dict]:
         """
-        Retrieve the top-k most similar chunks to a query.
+        Retrieve the top-k most similar chunks to a query, along
+        with their source document.
 
         Args:
             query_text (str): The search query.
             top_k (int): Number of top results to return.
 
         Returns:
-            list[str]: The most relevant text chunks.
+            list[dict]: Each dict has 'text' and 'source' keys.
         """
         query_embedding = self.embedder.embed([query_text])[0]
         results = self.collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
         )
-        return results["documents"][0]
+        chunks = results["documents"][0]
+        sources = [m["source"] for m in results["metadatas"][0]]
+        return [{"text": c, "source": s} for c, s in zip(chunks, sources)]
 
 
 if __name__ == "__main__":
