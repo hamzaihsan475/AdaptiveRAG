@@ -2,32 +2,28 @@
 main.py
 
 Entry point for AdaptiveRAG. Ingests all documents from
-sample_data/, embeds and stores them in the vector database
-(if not already done), then starts an interactive chat session
-with the LangChain-based RAG pipeline.
+sample_data/, indexes them in the vector database (if not
+already done), then starts an interactive chat session.
 """
 
 import os
 
 from ingestion.loader_factory import get_loader
 from embeddings.chunker import TextChunker
-from retrieval.vector_store import VectorStore
-from chat.conversation import ConversationManager
+from retrieval.document_indexer import DocumentIndexer
+from chat.conversation_orchestrator import ConversationOrchestrator
 
 
-def ingest_all_documents(data_dir: str, store: VectorStore) -> None:
+def ingest_all_documents(data_dir: str, indexer: DocumentIndexer) -> None:
     """
-    Load, chunk, and embed every supported document in a folder,
-    storing the resulting chunks in the vector store. Skips
-    ingestion entirely if the store already has data, to avoid
-    duplicate entries on repeated runs.
+    Load, chunk, and index every supported document in a folder.
 
     Args:
         data_dir (str): Path to the folder containing source documents.
-        store (VectorStore): The vector store to populate.
+        indexer (DocumentIndexer): The indexer to populate.
     """
-    if store.collection.count() > 0:
-        print(f"Vector store already has {store.collection.count()} chunks — skipping ingestion.")
+    if indexer.collection.count() > 0:
+        print(f"Vector store already has {indexer.collection.count()} chunks — skipping ingestion.")
         return
 
     chunker = TextChunker(chunk_size=500, chunk_overlap=50)
@@ -44,7 +40,7 @@ def ingest_all_documents(data_dir: str, store: VectorStore) -> None:
         text = loader.load(file_path)
         chunks = chunker.split(text)
 
-        store.add_chunks(chunks, source=filename)
+        indexer.add_chunks(chunks, source=filename)
         print(f" -> Added {len(chunks)} chunks from {filename}")
 
 
@@ -57,9 +53,10 @@ def main() -> None:
     data_dir = os.path.join(base_dir, "sample_data")
 
     print("Initializing AdaptiveRAG...")
-    manager = ConversationManager()
+    orchestrator = ConversationOrchestrator()
+    indexer = DocumentIndexer()
 
-    ingest_all_documents(data_dir, manager.vector_store)
+    ingest_all_documents(data_dir, indexer)
 
     print("\nAdaptiveRAG is ready. Type 'exit' to quit.\n")
     while True:
@@ -67,7 +64,7 @@ def main() -> None:
         if user_input.strip().lower() == "exit":
             break
         print("Thinking...", flush=True)
-        answer = manager.ask(user_input)
+        answer = orchestrator.ask(user_input)
         print(f"Assistant: {answer}\n")
 
 

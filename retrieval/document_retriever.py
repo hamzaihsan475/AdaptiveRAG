@@ -1,9 +1,8 @@
 """
-vector_store.py
+document_retriever.py
 
-Manages a persistent ChromaDB vector store — adding document
-chunks with their embeddings, and querying for similar chunks
-given a search query.
+Handles searching a ChromaDB collection for chunks relevant to a
+query. Single responsibility: retrieval only, not indexing.
 """
 
 import os
@@ -11,10 +10,10 @@ import chromadb
 from embeddings.embedder import EmbeddingGenerator
 
 
-class VectorStore:
+class DocumentRetriever:
     """
-    Wraps a persistent ChromaDB collection for storing and
-    retrieving text chunks by vector similarity.
+    Searches a persistent ChromaDB collection for the most similar
+    chunks to a given query.
 
     Attributes:
         persist_directory (str): Folder where ChromaDB data is stored.
@@ -29,8 +28,7 @@ class VectorStore:
 
         Args:
             persist_directory (str): Local folder for persistent storage.
-                Defaults to a chroma_db/ folder at the project root,
-                regardless of the current working directory.
+                Defaults to a chroma_db/ folder at the project root.
             collection_name (str): Name of the collection to use/create.
         """
         if persist_directory is None:
@@ -46,30 +44,9 @@ class VectorStore:
             name=self.collection_name
         )
 
-    def add_chunks(self, chunks: list[str], source: str) -> None:
-        """
-        Embed and store a list of text chunks in the vector store.
-
-        Args:
-            chunks (list[str]): Text chunks to store.
-            source (str): Identifier for where these chunks came from
-                (e.g. the original file name), stored as metadata.
-        """
-        embeddings = self.embedder.embed(chunks)
-        ids = [f"{source}_{i}" for i in range(len(chunks))]
-        metadatas = [{"source": source} for _ in chunks]
-
-        self.collection.add(
-            documents=chunks,
-            embeddings=embeddings,
-            ids=ids,
-            metadatas=metadatas,
-        )
-
     def query(self, query_text: str, top_k: int = 3) -> list[dict]:
         """
-        Retrieve the top-k most similar chunks to a query, along
-        with their source document.
+        Retrieve the top-k most similar chunks to a query.
 
         Args:
             query_text (str): The search query.
@@ -89,16 +66,14 @@ class VectorStore:
 
 
 if __name__ == "__main__":
-    store = VectorStore()
+    from retrieval.document_indexer import DocumentIndexer
 
-    sample_chunks = [
-        "The authentication endpoint requires a Bearer token in the header.",
-        "Database failovers are handled automatically through replica promotion.",
-        "Error 429 means the API rate limit has been exceeded, retry after 60 seconds.",
-    ]
-    store.add_chunks(sample_chunks, source="sample_api_docs")
+    indexer = DocumentIndexer()
+    indexer.add_chunks(
+        ["Database failovers are handled automatically through replica promotion."],
+        source="test",
+    )
 
-    results = store.query("What happens on a database failover?", top_k=2)
-    print("--- Top matching chunks ---")
-    for i, r in enumerate(results, 1):
-        print(f"{i}. {r}")
+    retriever = DocumentRetriever()
+    results = retriever.query("What happens on a database failover?", top_k=1)
+    print(results)

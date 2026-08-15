@@ -10,25 +10,26 @@ import os
 from django.conf import settings
 from django.shortcuts import render, redirect
 from .models import ChatMessage
-from chat.conversation import ConversationManager
+from chat.conversation_orchestrator import ConversationOrchestrator
+from retrieval.document_indexer import DocumentIndexer
 from ingestion.loader_factory import get_loader
 from embeddings.chunker import TextChunker
 
 _manager = None
 
 
-def get_manager() -> ConversationManager:
+def get_manager() -> ConversationOrchestrator:
     """
-    Lazily initialize and cache a single ConversationManager
+    Lazily initialize and cache a single ConversationOrchestrator
     instance, since loading the LLM and vector store is expensive
     and should only happen once per server process, not per request.
 
     Returns:
-        ConversationManager: The shared conversation manager instance.
+        ConversationOrchestrator: The shared orchestrator instance.
     """
     global _manager
     if _manager is None:
-        _manager = ConversationManager()
+        _manager = ConversationOrchestrator()
     return _manager
 
 
@@ -89,8 +90,8 @@ def upload_view(request):
             chunker = TextChunker(chunk_size=500, chunk_overlap=50)
             chunks = chunker.split(text)
 
-            manager = get_manager()
-            manager.vector_store.add_chunks(chunks, source=uploaded_file.name)
+            indexer = DocumentIndexer()
+            indexer.add_chunks(chunks, source=uploaded_file.name)
 
             request.session["upload_message"] = f"'{uploaded_file.name}' uploaded and indexed ({len(chunks)} chunks)."
         except ValueError as e:
