@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     # Build an absolute path to sample_data, regardless of working directory
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    test_file = os.path.join(BASE_DIR, "sample_data", "sample.pdf")
+    test_file = os.path.join(BASE_DIR, "sample_data", "system_error_log.txt")
 
     loader = get_loader(test_file)
     content = loader.load(test_file)

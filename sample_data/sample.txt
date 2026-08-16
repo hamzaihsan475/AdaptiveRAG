@@ -1,5 +1,0 @@
-DevTech Architecture & System Overview
---------------------------------------
-The AdaptiveRAG pipeline processes multi-format documents (PDF, DOCX, TXT, XLSX).
-System requirements: Intel Core i7 processor, 32GB RAM, Python 3.10+.
-Core dependencies: Hugging Face transformers, ChromaDB, and pypdf.
